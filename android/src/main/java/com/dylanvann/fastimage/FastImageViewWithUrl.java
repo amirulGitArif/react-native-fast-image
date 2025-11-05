@@ -12,7 +12,6 @@ import androidx.appcompat.widget.AppCompatImageView;
 import com.bumptech.glide.RequestBuilder;
 import com.bumptech.glide.RequestManager;
 import com.bumptech.glide.load.model.GlideUrl;
-import com.bumptech.glide.request.Request;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
@@ -64,22 +63,20 @@ class FastImageViewWithUrl extends AppCompatImageView {
                 isNullOrEmpty(mSource.getString("uri"))) &&
                 mDefaultSource == null) {
 
-            // Cancel existing requests.
             clearView(requestManager);
 
             if (glideUrl != null) {
                 FastImageOkHttpProgressGlideModule.forget(glideUrl.toStringUrl());
             }
 
-            // Clear the image.
             setImageDrawable(null);
             return;
         }
 
-        //final GlideUrl glideUrl = FastImageViewConverter.getGlideUrl(view.getContext(), mSource);
+        // Create the new FastImageSource
         final FastImageSource imageSource = FastImageViewConverter.getImageSource(getContext(), mSource);
 
-        if (imageSource != null && imageSource.getImageSource().getUri().toString().length() == 0) {
+        if (imageSource != null && imageSource.getUri().toString().length() == 0) {
             ThemedReactContext context = (ThemedReactContext) getContext();
             RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
             int viewId = getId();
@@ -87,21 +84,16 @@ class FastImageViewWithUrl extends AppCompatImageView {
             event.putString("message", "Invalid source prop:" + mSource);
             eventEmitter.receiveEvent(viewId, REACT_ON_ERROR_EVENT, event);
 
-            // Cancel existing requests.
             clearView(requestManager);
-
             if (glideUrl != null) {
                 FastImageOkHttpProgressGlideModule.forget(glideUrl.toStringUrl());
             }
-            // Clear the image.
             setImageDrawable(null);
             return;
         }
 
-        // `imageSource` may be null and we still continue, if `defaultSource` is not null
+        // Get glideUrl directly from FastImageSource
         final GlideUrl glideUrl = imageSource == null ? null : imageSource.getGlideUrl();
-
-        // Cancel existing request.
         this.glideUrl = glideUrl;
         clearView(requestManager);
 
@@ -120,29 +112,27 @@ class FastImageViewWithUrl extends AppCompatImageView {
 
         ThemedReactContext context = (ThemedReactContext) getContext();
         if (imageSource != null) {
-            // This is an orphan even without a load/loadend when only loading a placeholder
             RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
             int viewId = this.getId();
-
             eventEmitter.receiveEvent(viewId,
                     FastImageViewManager.REACT_ON_LOAD_START_EVENT,
                     new WritableNativeMap());
         }
 
         if (requestManager != null) {
+            Object sourceForLoad = imageSource != null
+                    ? (imageSource.getGlideUrl() != null
+                        ? imageSource.getGlideUrl()
+                        : imageSource.getUri())
+                    : null;
+
             RequestBuilder<Drawable> builder =
                     requestManager
-                            // This will make this work for remote and local images. e.g.
-                            //    - file:///
-                            //    - content://
-                            //    - res:/
-                            //    - android.resource://
-                            //    - data:image/png;base64
-                            .load(imageSource == null ? null : imageSource.getImageSource().getSourceForLoad())
+                            .load(sourceForLoad)
                             .apply(FastImageViewConverter
                                     .getOptions(context, imageSource, mSource)
-                                    .placeholder(mDefaultSource) // show until loaded
-                                    .fallback(mDefaultSource)); // null will not be treated as error
+                                    .placeholder(mDefaultSource)
+                                    .fallback(mDefaultSource));
 
             if (key != null)
                 builder.listener(new FastImageRequestListener(key));
@@ -152,7 +142,7 @@ class FastImageViewWithUrl extends AppCompatImageView {
     }
 
     public void clearView(@Nullable RequestManager requestManager) {
-        if (requestManager != null && getTag() != null && getTag() instanceof Request) {
+        if (requestManager != null && getTag() != null && getTag() instanceof com.bumptech.glide.request.Request) {
             requestManager.clear(this);
         }
     }

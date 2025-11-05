@@ -11,14 +11,11 @@ import android.widget.ImageView.ScaleType;
 
 import com.bumptech.glide.Priority;
 import com.bumptech.glide.load.engine.DiskCacheStrategy;
-import com.bumptech.glide.load.model.Headers;
-import com.bumptech.glide.load.model.LazyHeaders;
 import com.bumptech.glide.request.RequestOptions;
 import com.bumptech.glide.signature.ApplicationVersionSignature;
 import com.facebook.react.bridge.JSApplicationIllegalArgumentException;
 import com.facebook.react.bridge.NoSuchKeyException;
 import com.facebook.react.bridge.ReadableMap;
-import com.facebook.react.bridge.ReadableMapKeySetIterator;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -50,46 +47,22 @@ class FastImageViewConverter {
                 put("center", ScaleType.CENTER_INSIDE);
             }};
 
-    // Resolve the source uri to a file path that android understands.
+    // Updated to use the new FastImageSource constructor
     static @Nullable
     FastImageSource getImageSource(Context context, @Nullable ReadableMap source) {
-        return source == null
-                ? null
-                : new FastImageSource(context, source.getString("uri"), getHeaders(source));
+        return source == null ? null : new FastImageSource(source);
     }
 
-    static Headers getHeaders(ReadableMap source) {
-        Headers headers = Headers.DEFAULT;
-
-        if (source.hasKey("headers")) {
-            ReadableMap headersMap = source.getMap("headers");
-            ReadableMapKeySetIterator iterator = headersMap.keySetIterator();
-            LazyHeaders.Builder builder = new LazyHeaders.Builder();
-
-            while (iterator.hasNextKey()) {
-                String header = iterator.nextKey();
-                String value = headersMap.getString(header);
-
-                builder.addHeader(header, value);
-            }
-
-            headers = builder.build();
-        }
-
-        return headers;
-    }
-
-    static RequestOptions getOptions(Context context, FastImageSource imageSource, ReadableMap source) {
-        // Get priority.
+    static RequestOptions getOptions(Context context, @Nullable FastImageSource imageSource, ReadableMap source) {
         final Priority priority = FastImageViewConverter.getPriority(source);
-        // Get cache control method.
         final FastImageCacheControl cacheControl = FastImageViewConverter.getCacheControl(source);
+
         DiskCacheStrategy diskCacheStrategy = DiskCacheStrategy.AUTOMATIC;
         boolean onlyFromCache = false;
         boolean skipMemoryCache = false;
+
         switch (cacheControl) {
             case WEB:
-                // If using none then OkHttp integration should be used for caching.
                 diskCacheStrategy = DiskCacheStrategy.NONE;
                 skipMemoryCache = true;
                 break;
@@ -97,7 +70,6 @@ class FastImageViewConverter {
                 onlyFromCache = true;
                 break;
             case IMMUTABLE:
-                // Use defaults.
                 break;
         }
 
@@ -108,13 +80,9 @@ class FastImageViewConverter {
                 .priority(priority)
                 .placeholder(TRANSPARENT_DRAWABLE);
 
-        if (imageSource.isResource()) {
-            // Every local resource (drawable) in Android has its own unique numeric id, which are
-            // generated at build time. Although these ids are unique, they are not guaranteed unique
-            // across builds. The underlying glide implementation caches these resources. To make
-            // sure the cache does not return the wrong image, we should clear the cache when the
-            // application version changes. Adding a cache signature for only these local resources
-            // solves this issue: https://github.com/DylanVann/react-native-fast-image/issues/402
+        // Since FastImageSource no longer has isResource(), skip that check
+        if (imageSource != null && imageSource.getUri() != null &&
+            "android.resource".equals(imageSource.getUri().getScheme())) {
             options = options.apply(signatureOf(ApplicationVersionSignature.obtain(context)));
         }
 
