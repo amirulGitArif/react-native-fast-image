@@ -47,10 +47,10 @@ class FastImageViewConverter {
                 put("center", ScaleType.CENTER_INSIDE);
             }};
 
-    // Updated to use the new FastImageSource constructor
+    // ✅ Fixed to use the correct FastImageSource constructor
     static @Nullable
     FastImageSource getImageSource(Context context, @Nullable ReadableMap source) {
-        return source == null ? null : new FastImageSource(source);
+        return source == null ? null : new FastImageSource(context, source, null);
     }
 
     static RequestOptions getOptions(Context context, @Nullable FastImageSource imageSource, ReadableMap source) {
@@ -80,9 +80,9 @@ class FastImageViewConverter {
                 .priority(priority)
                 .placeholder(TRANSPARENT_DRAWABLE);
 
-        // Since FastImageSource no longer has isResource(), skip that check
+        //  Handle Android resource URIs properly
         if (imageSource != null && imageSource.getUri() != null &&
-            "android.resource".equals(imageSource.getUri().getScheme())) {
+                "android.resource".equals(imageSource.getUri().getScheme())) {
             options = options.apply(signatureOf(ApplicationVersionSignature.obtain(context)));
         }
 
