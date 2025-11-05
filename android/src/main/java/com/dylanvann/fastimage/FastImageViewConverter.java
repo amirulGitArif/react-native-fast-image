@@ -50,7 +50,7 @@ class FastImageViewConverter {
     // ✅ Fixed to use the correct FastImageSource constructor
     static @Nullable
     FastImageSource getImageSource(Context context, @Nullable ReadableMap source) {
-        return source == null ? null : new FastImageSource(context, source, null);
+        return source == null ? null : new FastImageSource(context, FastImageViewConverter.getString(source, "uri"), source);
     }
 
     static RequestOptions getOptions(Context context, @Nullable FastImageSource imageSource, ReadableMap source) {
