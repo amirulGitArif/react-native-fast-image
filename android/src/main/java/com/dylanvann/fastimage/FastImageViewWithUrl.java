@@ -79,7 +79,7 @@ class FastImageViewWithUrl extends AppCompatImageView {
         //final GlideUrl glideUrl = FastImageViewConverter.getGlideUrl(view.getContext(), mSource);
         final FastImageSource imageSource = FastImageViewConverter.getImageSource(getContext(), mSource);
 
-        if (imageSource != null && imageSource.getUri().toString().length() == 0) {
+        if (imageSource != null && imageSource.getImageSource().getUri().toString().length() == 0) {
             ThemedReactContext context = (ThemedReactContext) getContext();
             RCTEventEmitter eventEmitter = context.getJSModule(RCTEventEmitter.class);
             int viewId = getId();
@@ -138,7 +138,7 @@ class FastImageViewWithUrl extends AppCompatImageView {
                             //    - res:/
                             //    - android.resource://
                             //    - data:image/png;base64
-                            .load(imageSource == null ? null : imageSource.getSourceForLoad())
+                            .load(imageSource == null ? null : imageSource.getImageSource().getSourceForLoad())
                             .apply(FastImageViewConverter
                                     .getOptions(context, imageSource, mSource)
                                     .placeholder(mDefaultSource) // show until loaded
