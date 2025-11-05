@@ -22,6 +22,12 @@ import java.util.Map;
 
 import javax.annotation.Nullable;
 
+import com.facebook.react.bridge.ReadableMapKeySetIterator;
+
+import com.bumptech.glide.load.model.Headers;
+
+
+
 class FastImageViewConverter {
     private static final Drawable TRANSPARENT_DRAWABLE = new ColorDrawable(Color.TRANSPARENT);
 
@@ -47,11 +53,33 @@ class FastImageViewConverter {
                 put("center", ScaleType.CENTER_INSIDE);
             }};
 
-    // ✅ Fixed to use the correct FastImageSource constructor
-    static @Nullable
-    FastImageSource getImageSource(Context context, @Nullable ReadableMap source) {
-        return source == null ? null : new FastImageSource(context, FastImageViewConverter.getString(source, "uri"), source);
+static FastImageSource getImageSource(Context context, ReadableMap source) {
+    if (source == null) return null;
+
+    String uri = source.hasKey("uri") ? source.getString("uri") : null;
+
+    // Extract headers from JS
+    ReadableMap headersMap = source.hasKey("headers") ? source.getMap("headers") : null;
+    Map<String, String> headerMap = new HashMap<>();
+    if (headersMap != null) {
+        ReadableMapKeySetIterator iterator = headersMap.keySetIterator();
+        while (iterator.hasNextKey()) {
+            String key = iterator.nextKey();
+            headerMap.put(key, headersMap.getString(key));
+        }
     }
+
+    // ✅ Use Glide’s Headers interface properly (anonymous implementation)
+    Headers glideHeaders = new Headers() {
+        @Override
+        public Map<String, String> getHeaders() {
+            return headerMap;
+        }
+    };
+
+    // ✅ Pass Glide Headers, not okhttp3.Headers
+    return new FastImageSource(context, uri, glideHeaders);
+}
 
     static RequestOptions getOptions(Context context, @Nullable FastImageSource imageSource, ReadableMap source) {
         final Priority priority = FastImageViewConverter.getPriority(source);
